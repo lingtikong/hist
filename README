@@ -1,0 +1,4 @@
+This code aims to calculate the histogram of one column data in a
+file; the data could be either numbers or words. By default, the
+data are assumed to be words. Or to calculate the distribution of
+one column data along another column data.
