@@ -146,7 +146,6 @@ void Histogram::Output(char *fname)
       fprintf(fp,"%d %s %d %lg\n", id, Index2Item[id].c_str(), num, double(num)*fac);
     }
   } else if (datatype == 1){ // number case
-    fac /= stepsize;
 
     fprintf(fp,"#index Item Counts weight\n");
     int ic = 0;
@@ -161,7 +160,6 @@ void Histogram::Output(char *fname)
       fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
     }
   } else if (datatype == 2){ // number pair case
-    fac /= stepsize;
 
     fprintf(fp,"#index position AveValue StdEr Counts weight\n");
     int ic = 0;
