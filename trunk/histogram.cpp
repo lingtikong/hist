@@ -7,7 +7,7 @@
 #define MAXLINE 256
 /* ---------------------------------------------------------------------- */
 
-Histogram::Histogram( )
+Histogram::Histogram(int *iflag, double *dflag)
 {
   HasItem.clear();
   Item2Index.clear();
@@ -17,26 +17,6 @@ Histogram::Histogram( )
   HitSum.clear();
   HitSum2.clear();
   
-}
-
-/* ---------------------------------------------------------------------- */
-
-Histogram::~Histogram( )
-{
-  nitem = nuniq = 0;
-  HasItem.clear();
-  Item2Index.clear();
-  Index2Item.clear();
-  ItemCount.clear();
-  HasNum.clear();
-  HitSum.clear();
-  HitSum2.clear();
-}
-
-/* ---------------------------------------------------------------------- */
-
-void Histogram::init(int *iflag, double *dflag)
-{
   nitem = nuniq = 0;
   datatype = iflag[0];
   zeroflag = iflag[1];
@@ -55,6 +35,20 @@ void Histogram::init(int *iflag, double *dflag)
   }
 
 return;
+}
+
+/* ---------------------------------------------------------------------- */
+
+Histogram::~Histogram( )
+{
+  nitem = nuniq = 0;
+  HasItem.clear();
+  Item2Index.clear();
+  Index2Item.clear();
+  ItemCount.clear();
+  HasNum.clear();
+  HitSum.clear();
+  HitSum2.clear();
 }
 
 /* ----------------------------------------------------------------------

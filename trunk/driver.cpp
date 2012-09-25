@@ -6,6 +6,7 @@
 #include "histogram.h"
 
 #define MAXLINE 512
+#define ZERO    1.e-14
 
 /* ----------------------------------------------------------------------
    Driver, to read all files and throw data into the histogram calculator
@@ -24,41 +25,51 @@ Driver::Driver(int narg, char **arg)
   while (iarg < narg){
     if (strcmp(arg[iarg],"-w")==0 || strcmp(arg[iarg],"-s")==0 ){ // string
       datatype = 0;
+
     } else if (strcmp(arg[iarg],"-f")==0 || strcmp(arg[iarg],"-d")==0 || strcmp(arg[iarg],"-n")==0 ){ // number
       datatype = 1;
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       stepsize = atof(arg[iarg]);
-      if (fabs(stepsize) < 1.e-10) {DispHelp(arg[0]); return;}
+      if (fabs(stepsize) < ZERO) {DispHelp(arg[0]); return;}
+
     } else if (strcmp(arg[iarg],"-x")==0 ){ // number pair
       datatype = 2;
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       stepsize = atof(arg[iarg]);
-      if (fabs(stepsize) < 1.e-10) {DispHelp(arg[0]); return;}
+      if (fabs(stepsize) < ZERO) {DispHelp(arg[0]); return;}
+
     } else if ( strcmp(arg[iarg],"-k")==0 ){ // key column
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       ikey = atoi(arg[iarg]);
+
     } else if ( strcmp(arg[iarg],"-v")==0 ){ // value column; for string and number, ivalue = ikey
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       ivalue = atoi(arg[iarg]);
+
     } else if ( strcmp(arg[iarg],"-p")==0 ){ // periodic boundary condition for number and number pairs
       pbcflag = 1;
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       pstr = atof(arg[iarg]);
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       pend = atof(arg[iarg]);
+
     } else if ( strcmp(arg[iarg],"-zero")==0 ){ // add empty bins as zero
       zeroflag = 1;
+
     } else if (strcmp(arg[iarg],"-h")==0){
       DispHelp(arg[0]); return;
+
     } else if (strcmp(arg[iarg],"-o")==0){
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       if (fout) delete []fout;
       fout = new char [strlen(arg[iarg])+1];
       strcpy(fout, arg[iarg]);
+
     } else break;
 
     iarg++;
   }
+
   if (iarg >= narg){DispHelp(arg[0]); return;}
   if (datatype < 2) ivalue = ikey;
   if (pend < pstr) pbcflag = 0;
@@ -68,7 +79,6 @@ Driver::Driver(int narg, char **arg)
   }
 
   FILE *fp;
-  Histogram *hist = new Histogram;
   char str[MAXLINE];
   std::string item;
   double key, value;
@@ -78,7 +88,7 @@ Driver::Driver(int narg, char **arg)
   iflag[0] = datatype; iflag[1] = zeroflag; iflag[2] = pbcflag;
   dflag[0] = stepsize; dflag[1] = pstr;     dflag[2] = pend;
 
-  hist->init(&iflag[0], &dflag[0]);
+  Histogram *hist = new Histogram(&iflag[0], &dflag[0]);
 
   // to read all files
   while (iarg < narg){
@@ -107,9 +117,9 @@ Driver::Driver(int narg, char **arg)
         n++;
       } while ((ptr=strtok(NULL," \t\n\r\f")) != NULL && hit != 3);
       if (hit == 3){ 
-         if (datatype == 0) hist->AddValue(item);
-         else if (datatype == 1) hist->AddValue(value);
-         else hist->AddValue(key, value);
+        if (datatype == 0) hist->AddValue(item);
+        else if (datatype == 1) hist->AddValue(value);
+        else hist->AddValue(key, value);
       }
     }
     fclose(fp);

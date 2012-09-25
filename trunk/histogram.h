@@ -7,12 +7,12 @@
 
 class Histogram{
  public:
-  Histogram();
+  Histogram(int *, double *);
   ~Histogram();
   void AddValue(const std::string);  // add one item into histogram
   void AddValue(double);             // add one item into histogram
   void AddValue(double,double);      // add one item into histogram
-  void init(int *, double *);        // to initialize some variable before doing statistics
+  //void init(int *, double *);        // to initialize some variable before doing statistics
   void Output(char *);               // output the resultant histogram
 
  private:
