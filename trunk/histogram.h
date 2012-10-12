@@ -6,22 +6,25 @@
 #include <vector>
 
 class Histogram{
- public:
+public:
   Histogram(int *, double *);
   ~Histogram();
+
   void AddValue(const std::string);  // add one item into histogram
+  void AddValue(const std::string,double);  // add one item into histogram
   void AddValue(double);             // add one item into histogram
   void AddValue(double,double);      // add one item into histogram
-  //void init(int *, double *);        // to initialize some variable before doing statistics
+
   void Output(char *);               // output the resultant histogram
 
- private:
+private:
   int nitem, nuniq;                  // total # of items / unique items
   void Sort();                       // to sort the histogram
 
-  int datatype;                      // 0: words; 1: numbers; 2: number pairs
+  int keytype;                       // 0: words; 1: numbers;
   int zeroflag;                      // 0: skip zero bins; 1: insert zero bins for number or number pairs
-  int pbcflag;                       // 1: pbc for key of number or number pairs; 0: no pbc
+  int pbcflag;                       // 1: pbc for key of number pairs; 0: no pbc
+  int pairflag;                      // pair data, first as key, second as value
   double stepsize;                   // step size for numbers
   double halfstep, inv_step;
   double pstr, pend, prd;
