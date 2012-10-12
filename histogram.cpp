@@ -18,9 +18,11 @@ Histogram::Histogram(int *iflag, double *dflag)
   HitSum2.clear();
   
   nitem = nuniq = 0;
-  datatype = iflag[0];
+  keytype  = iflag[0];
   zeroflag = iflag[1];
   pbcflag  = iflag[2];
+  pairflag = iflag[3];
+
   stepsize = dflag[0];
   pstr     = dflag[1];
   pend     = dflag[2];
@@ -29,7 +31,7 @@ Histogram::Histogram(int *iflag, double *dflag)
   if (pbcflag && (stepsize > prd)) pbcflag = 0;
   if (pbcflag == 0) pstr = pend = 0.;
       
-  if (datatype){
+  if (keytype){
     halfstep = 0.5*stepsize;
     inv_step = 1./stepsize;
   }
@@ -71,6 +73,29 @@ void Histogram::AddValue(const std::string itemstr)
 }
 
 /* ----------------------------------------------------------------------
+   To add one item into the histogram calculation; word key, number value
+------------------------------------------------------------------------- */
+void Histogram::AddValue(const std::string itemstr, double value)
+{
+  int id;
+  HasItem[itemstr] = 1;
+  if ( (int)HasItem.size() > nuniq ){
+    id = ++nuniq;
+    Item2Index[itemstr] = id;
+    Index2Item[id] = itemstr;
+    ItemCount[id] = 0;
+
+    HitSum[id] = 0.;
+    HitSum2[id] = 0.;
+  } else id = Item2Index[itemstr];
+
+  HitSum[id]  += value;
+  HitSum2[id] += value*value;
+  ItemCount[id]++;
+  nitem ++;
+}
+
+/* ----------------------------------------------------------------------
    To add one item into the histogram calculation; numbers
 ------------------------------------------------------------------------- */
 
@@ -96,7 +121,6 @@ void Histogram::AddValue(double value)
 /* ----------------------------------------------------------------------
    To add one item into the histogram calculation; number pairs
 ------------------------------------------------------------------------- */
-
 void Histogram::AddValue(double pos, double value)
 {
   int id;
@@ -132,47 +156,70 @@ void Histogram::Output(char *fname)
   FILE *fp = fopen(fname, "w");
   if (fp == NULL){printf("\nError while opening file %s! Outputing stopped.\n", fname); return;}
 
-  if (datatype == 0){ // string case
-    fprintf(fp,"#index Item Counts weight\n");
+  if (keytype == 0){
     Sort();
-    for (int id=1; id<= nuniq; id++){
-      int num = ItemCount[id];
-      fprintf(fp,"%d %s %d %lg\n", id, Index2Item[id].c_str(), num, double(num)*fac);
-    }
-  } else if (datatype == 1){ // number case
-
-    fprintf(fp,"#index Item Counts weight\n");
-    int ic = 0;
-    std::map<int,int>::iterator it;
-    int inext = ItemCount.begin()->first;
-    for (it = ItemCount.begin(); it != ItemCount.end(); it++){
-      int id = it->first, num = it->second;
-      if (zeroflag){ // insert empty bins
-        for (int ik=inext; ik<id; ik++) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
-        inext = id+1;
+    if (pairflag == 0){
+      fprintf(fp,"#index Item Counts weight\n");
+      for (int id=1; id<= nuniq; id++){
+        int num = ItemCount[id];
+        fprintf(fp,"%d %s %d %lg\n", id, Index2Item[id].c_str(), num, double(num)*fac);
       }
-      fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
-    }
-  } else if (datatype == 2){ // number pair case
 
-    fprintf(fp,"#index position AveValue StdEr Counts weight\n");
-    int ic = 0;
-    double ave, stdv;
-    std::map<int,int>::iterator it;
-    int inext = ItemCount.begin()->first;
-    for (it = ItemCount.begin(); it != ItemCount.end(); it++){
-      int id = it->first, num = it->second;
-      if (zeroflag){ // insert empty bins
-        for (int ik = inext; ik<id; ik++)
-          fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
-        inext = id+1;
+    } else {
+
+      fprintf(fp,"#index Item AveValue StdEr Counts weight\n");
+      int ic = 0;
+      double ave, stdv;
+      std::map<int,int>::iterator it;
+      int inext = ItemCount.begin()->first;
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        ave = HitSum[id]/double(num);
+        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
+        else stdv = 0.;
+        fprintf(fp,"%d %s %lg %lg %d %lg\n", ++ic, Index2Item[id].c_str(), ave, stdv, num, double(num)*fac);
       }
-      ave = HitSum[id]/double(num);
-      if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
-      else stdv = 0.;
-      fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, ave, stdv, num, double(num)*fac);
+
+    }
+
+  } else {
+   
+    if (pairflag == 0){
+      fprintf(fp,"#index Item Counts weight\n");
+      int ic = 0;
+      std::map<int,int>::iterator it;
+      int inext = ItemCount.begin()->first;
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        if (zeroflag){ // insert empty bins
+          for (int ik=inext; ik<id; ik++) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
+          inext = id+1;
+        }
+        fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
+      }
+
+    } else {
+
+      fprintf(fp,"#index position AveValue StdEr Counts weight\n");
+      int ic = 0;
+      double ave, stdv;
+      std::map<int,int>::iterator it;
+      int inext = ItemCount.begin()->first;
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        if (zeroflag){ // insert empty bins
+          for (int ik = inext; ik<id; ik++)
+            fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
+          inext = id+1;
+        }
+        ave = HitSum[id]/double(num);
+        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
+        else stdv = 0.;
+        fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, ave, stdv, num, double(num)*fac);
+      }
     }
   }
+
   fclose(fp);
 }
 
@@ -195,6 +242,15 @@ void Histogram::Sort()
         Index2Item[j] = stri;
         Item2Index[stri] = j;
         Item2Index[strj] = i;
+
+        if (pairflag){
+          double dbl = HitSum[i];
+          HitSum[i] = HitSum[j];
+          HitSum[j] = dbl;
+          dbl = HitSum2[i];
+          HitSum2[i] = HitSum2[j];
+          HitSum2[j] = dbl;
+        }
       }
     }
   }

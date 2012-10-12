@@ -13,9 +13,9 @@
 ------------------------------------------------------------------------- */
 Driver::Driver(int narg, char **arg)
 {
-  int datatype = 0;
-  int zeroflag = 0;
-  int pbcflag = 0;
+  int keytype = 0;
+  int zeroflag = 0, pairflag = 0;
+  int pbcflag = 0, vflag = 0, sflag = 0;
   double stepsize = 0.;
   double pstr=0., pend=0.;
   int iarg = 1, ikey=1, ivalue=1;
@@ -23,19 +23,15 @@ Driver::Driver(int narg, char **arg)
   char *fout = NULL;
 
   while (iarg < narg){
-    if (strcmp(arg[iarg],"-w")==0 || strcmp(arg[iarg],"-s")==0 ){ // string
-      datatype = 0;
+    if (strcmp(arg[iarg],"-w") == 0){ // key is string
+      keytype = 0;
 
-    } else if (strcmp(arg[iarg],"-f")==0 || strcmp(arg[iarg],"-d")==0 || strcmp(arg[iarg],"-n")==0 ){ // number
-      datatype = 1;
-      if (++iarg >= narg) {DispHelp(arg[0]); return;}
-      stepsize = atof(arg[iarg]);
-      if (fabs(stepsize) < ZERO) {DispHelp(arg[0]); return;}
+    } else if (strcmp(arg[iarg],"-f") == 0){ // key is number
+      keytype = 1;
 
-    } else if (strcmp(arg[iarg],"-x")==0 ){ // number pair
-      datatype = 2;
+    } else if (strcmp(arg[iarg],"-s") == 0){ // stepsize if key is number
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
-      stepsize = atof(arg[iarg]);
+      stepsize = atof(arg[iarg]); sflag = 1;
       if (fabs(stepsize) < ZERO) {DispHelp(arg[0]); return;}
 
     } else if ( strcmp(arg[iarg],"-k")==0 ){ // key column
@@ -44,7 +40,7 @@ Driver::Driver(int narg, char **arg)
 
     } else if ( strcmp(arg[iarg],"-v")==0 ){ // value column; for string and number, ivalue = ikey
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
-      ivalue = atoi(arg[iarg]);
+      ivalue = atoi(arg[iarg]); vflag = 1;
 
     } else if ( strcmp(arg[iarg],"-p")==0 ){ // periodic boundary condition for number and number pairs
       pbcflag = 1;
@@ -70,8 +66,12 @@ Driver::Driver(int narg, char **arg)
     iarg++;
   }
 
+  if (!vflag) ivalue = ikey;
+  pairflag = abs(ikey-ivalue);
+
+  if (keytype && (!sflag)){DispHelp(arg[0]); return;}
+
   if (iarg >= narg){DispHelp(arg[0]); return;}
-  if (datatype < 2) ivalue = ikey;
   if (pend < pstr) pbcflag = 0;
   if (fout == NULL){
     fout = new char [9];
@@ -83,9 +83,9 @@ Driver::Driver(int narg, char **arg)
   std::string item;
   double key, value;
 
-  int iflag[3];
+  int iflag[4];
   double dflag[3];
-  iflag[0] = datatype; iflag[1] = zeroflag; iflag[2] = pbcflag;
+  iflag[0] = keytype; iflag[1] = zeroflag; iflag[2] = pbcflag; iflag[3] = pairflag;
   dflag[0] = stepsize; dflag[1] = pstr;     dflag[2] = pend;
 
   Histogram *hist = new Histogram(&iflag[0], &dflag[0]);
@@ -117,9 +117,13 @@ Driver::Driver(int narg, char **arg)
         n++;
       } while ((ptr=strtok(NULL," \t\n\r\f")) != NULL && hit != 3);
       if (hit == 3){ 
-        if (datatype == 0) hist->AddValue(item);
-        else if (datatype == 1) hist->AddValue(value);
-        else hist->AddValue(key, value);
+        if (keytype == 0){
+          if (pairflag) hist->AddValue(item, value);
+          else hist->AddValue(item);
+        } else {
+          if (pairflag) hist->AddValue(key, value);
+          else hist->AddValue(value);
+        }
       }
     }
     fclose(fp);
@@ -146,15 +150,11 @@ void Driver::DispHelp(const char * cmd)
   printf("\nUsage: %s [option] file1 [file2 file3 ...]\n", cmd);
   printf("------------------------------------------------------------------------------------------------\n");
   printf("  Options:\n");
-  printf("    -w/-s         : Indicating that the data in the desired column are characters; default.\n");
-  printf("    -f/-d/-n step : Indicating that the data in the desired column are numbers, an extra\n");
-  printf("                    argument indicates the step size is needed, which must not be zero.\n");
-  printf("    -x step       : Indicating that the data is actually a paire of numbers, the first (key) gives\n");
-  printf("                    the position of the data, while the second (value) gives the data to be averaged.\n");
-  printf("                    An extra argument indicates the step size is needed, which must not be zero.\n");
+  printf("    -w            : Indicating that the key data are strings; default.\n");
+  printf("    -f            : Indicating that the key data are numbers;\n");
+  printf("    -s step       : To define the stepsize if key data are numbers; must be set if `-f` is set.\n");
   printf("    -k key-col    : To specify the column number of the key, by default it is the first column.\n");
-  printf("    -v value-col  : To specify the column number of the value, by default it is the first column.\n");
-  printf("                    in the case of w or f, the value is assumed to be the same as the key.\n");
+  printf("    -v value-col  : To specify the column number of the value, by default: same as key-col.\n");
   printf("    -zero         : To specify that empty bins should be output as zero; by default unset.\n");
   printf("    -p pstr pend  : To specify that the key column has periodic boundary condition, and \n");
   printf("                    the range of the period is given by the following arguments.\n");
