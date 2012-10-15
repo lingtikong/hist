@@ -7,31 +7,25 @@
 #define MAXLINE 256
 /* ---------------------------------------------------------------------- */
 
-Histogram::Histogram(int *iflag, double *dflag)
+Histogram::Histogram(const int iflag, double *dflag)
 {
-  HasItem.clear();
   Item2Index.clear();
   Index2Item.clear();
   ItemCount.clear();
-  HasNum.clear();
   HitSum.clear();
   HitSum2.clear();
   
   nitem = nuniq = 0;
-  keytype  = iflag[0];
-  zeroflag = iflag[1];
-  pbcflag  = iflag[2];
-  pairflag = iflag[3];
+  flag = iflag;
 
   stepsize = dflag[0];
   pstr     = dflag[1];
   pend     = dflag[2];
   prd      = pend - pstr;
 
-  if (pbcflag && (stepsize > prd)) pbcflag = 0;
-  if (pbcflag == 0) pstr = pend = 0.;
+  if ( (flag & PBC4Key) && (stepsize > prd)) flag &= (~PBC4Key);
       
-  if (keytype){
+  if (flag & FloatKey){
     halfstep = 0.5*stepsize;
     inv_step = 1./stepsize;
   }
@@ -44,11 +38,9 @@ return;
 Histogram::~Histogram( )
 {
   nitem = nuniq = 0;
-  HasItem.clear();
   Item2Index.clear();
   Index2Item.clear();
   ItemCount.clear();
-  HasNum.clear();
   HitSum.clear();
   HitSum2.clear();
 }
@@ -56,16 +48,15 @@ Histogram::~Histogram( )
 /* ----------------------------------------------------------------------
    To add one item into the histogram calculation
 ------------------------------------------------------------------------- */
-
-void Histogram::AddValue(const std::string itemstr)
+void Histogram::AddValue(const string itemstr)
 {
   int id;
-  HasItem[itemstr] = 1;
-  if ( (int)HasItem.size() > nuniq ){
+  if (Item2Index.count(itemstr) == 0){
     id = ++nuniq;
     Item2Index[itemstr] = id;
     Index2Item[id] = itemstr;
     ItemCount[id] = 0;
+
   } else id = Item2Index[itemstr];
 
   ItemCount[id] ++;
@@ -75,11 +66,10 @@ void Histogram::AddValue(const std::string itemstr)
 /* ----------------------------------------------------------------------
    To add one item into the histogram calculation; word key, number value
 ------------------------------------------------------------------------- */
-void Histogram::AddValue(const std::string itemstr, double value)
+void Histogram::AddValue(const string itemstr, const double value)
 {
   int id;
-  HasItem[itemstr] = 1;
-  if ( (int)HasItem.size() > nuniq ){
+  if (Item2Index.count(itemstr) == 0){
     id = ++nuniq;
     Item2Index[itemstr] = id;
     Index2Item[id] = itemstr;
@@ -98,21 +88,18 @@ void Histogram::AddValue(const std::string itemstr, double value)
 /* ----------------------------------------------------------------------
    To add one item into the histogram calculation; numbers
 ------------------------------------------------------------------------- */
-
-void Histogram::AddValue(double value)
+void Histogram::AddValue(const double value)
 {
   int id;
-  if (pbcflag){
+  if (flag & PBC4Key){
     double dr = value + halfstep - pstr;
     while (dr > prd) dr -= prd;
     while (dr < 0.)  dr += prd;
     id = dr * inv_step;
+
   } else id = (value + halfstep) * inv_step;
-  HasNum[id] = 1;
-  if ( (int)HasNum.size() > nuniq ){
-    ++nuniq;
-    ItemCount[id] = 0;
-  }
+
+  if (ItemCount.count(id) == 0) ItemCount[id] = 0;
 
   ItemCount[id]++;
   nitem ++;
@@ -121,19 +108,18 @@ void Histogram::AddValue(double value)
 /* ----------------------------------------------------------------------
    To add one item into the histogram calculation; number pairs
 ------------------------------------------------------------------------- */
-void Histogram::AddValue(double pos, double value)
+void Histogram::AddValue(const double pos, const double value)
 {
   int id;
-  if (pbcflag){
+  if (flag & PBC4Key){
     double dr = pos + halfstep - pstr;
     while (dr > prd) dr -= prd;
     while (dr < 0.)  dr += prd;
     id = dr * inv_step;
+
   } else id = (pos + halfstep) * inv_step;
 
-  HasNum[id] = 1;
-  if ( (int)HasNum.size() > nuniq ){
-    ++nuniq;
+  if (ItemCount.count(id) == 0){
     ItemCount[id] = 0;
     HitSum[id] = 0.;
     HitSum2[id] = 0.;
@@ -144,83 +130,89 @@ void Histogram::AddValue(double pos, double value)
   ItemCount[id]++;
   nitem ++;
 }
+
 /* ----------------------------------------------------------------------
    To output the resultant histogram
 ------------------------------------------------------------------------- */
-
 void Histogram::Output(char *fname)
 {
-  char str[MAXLINE];
-  double fac = 1./double(nitem>0?nitem:1);
-  
   FILE *fp = fopen(fname, "w");
   if (fp == NULL){printf("\nError while opening file %s! Outputing stopped.\n", fname); return;}
 
-  if (keytype == 0){
+  char str[MAXLINE];
+  double fac = 1./double(nitem>0?nitem:1);
+  map<int,int>::iterator it;
+
+  if (flag & FloatKey){
+
+    if (flag & PairData){ // float key and value pairs
+
+      fprintf(fp,"#index position AveValue StdEr Counts weight\n");
+      int ic = 0;
+      double ave, stdv;
+      int inext = ItemCount.begin()->first;
+
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        if (flag & ZeroPad){ // insert empty bins
+          for (int ik = inext; ik<id; ik++) fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
+          inext = id+1;
+        }
+        ave = HitSum[id]/double(num);
+        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
+        else stdv = 0.;
+
+        fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, ave, stdv, num, double(num)*fac);
+      }
+
+    } else { // float key only
+
+      fprintf(fp,"#index Item Counts weight\n");
+      int ic = 0;
+      int inext = ItemCount.begin()->first;
+
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        if (flag & ZeroPad){ // insert empty bins
+          for (int ik=inext; ik<id; ik++) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
+          inext = id+1;
+        }
+
+        fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
+      }
+    }
+
+  } else { // string keys
+
     Sort();
-    if (pairflag == 0){
+
+    if (flag & PairData){ // string key and float value pair
+
+      fprintf(fp,"#index Item AveValue StdEr Counts weight\n");
+      int ic = 0;
+      double ave, stdv;
+      int inext = ItemCount.begin()->first;
+
+      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
+        int id = it->first, num = it->second;
+        ave = HitSum[id]/double(num);
+        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
+        else stdv = 0.;
+
+        fprintf(fp,"%d %s %lg %lg %d %lg\n", ++ic, Index2Item[id].c_str(), ave, stdv, num, double(num)*fac);
+      }
+
+    } else {
+
       fprintf(fp,"#index Item Counts weight\n");
       for (int id=1; id<= nuniq; id++){
         int num = ItemCount[id];
         fprintf(fp,"%d %s %d %lg\n", id, Index2Item[id].c_str(), num, double(num)*fac);
       }
-
-    } else {
-
-      fprintf(fp,"#index Item AveValue StdEr Counts weight\n");
-      int ic = 0;
-      double ave, stdv;
-      std::map<int,int>::iterator it;
-      int inext = ItemCount.begin()->first;
-      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
-        int id = it->first, num = it->second;
-        ave = HitSum[id]/double(num);
-        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
-        else stdv = 0.;
-        fprintf(fp,"%d %s %lg %lg %d %lg\n", ++ic, Index2Item[id].c_str(), ave, stdv, num, double(num)*fac);
-      }
-
-    }
-
-  } else {
-   
-    if (pairflag == 0){
-      fprintf(fp,"#index Item Counts weight\n");
-      int ic = 0;
-      std::map<int,int>::iterator it;
-      int inext = ItemCount.begin()->first;
-      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
-        int id = it->first, num = it->second;
-        if (zeroflag){ // insert empty bins
-          for (int ik=inext; ik<id; ik++) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
-          inext = id+1;
-        }
-        fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
-      }
-
-    } else {
-
-      fprintf(fp,"#index position AveValue StdEr Counts weight\n");
-      int ic = 0;
-      double ave, stdv;
-      std::map<int,int>::iterator it;
-      int inext = ItemCount.begin()->first;
-      for (it = ItemCount.begin(); it != ItemCount.end(); it++){
-        int id = it->first, num = it->second;
-        if (zeroflag){ // insert empty bins
-          for (int ik = inext; ik<id; ik++)
-            fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
-          inext = id+1;
-        }
-        ave = HitSum[id]/double(num);
-        if (num > 2) stdv = sqrt((HitSum2[id]-double(num)*ave*ave)/double(num-1));
-        else stdv = 0.;
-        fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, ave, stdv, num, double(num)*fac);
-      }
     }
   }
-
-  fclose(fp);
+   
+fclose(fp);
 }
 
 /* ----------------------------------------------------------------------
@@ -229,6 +221,8 @@ void Histogram::Output(char *fname)
 
 void Histogram::Sort()
 {
+  if (flag & FloatKey) return;
+
   for (int i=1; i<nuniq; i++){
     for (int j=i+1; j<= nuniq; j++){
       if (ItemCount[j] > ItemCount[i]){
@@ -243,7 +237,7 @@ void Histogram::Sort()
         Item2Index[stri] = j;
         Item2Index[strj] = i;
 
-        if (pairflag){
+        if (flag & PairData){
           double dbl = HitSum[i];
           HitSum[i] = HitSum[j];
           HitSum[j] = dbl;

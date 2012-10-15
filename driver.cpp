@@ -13,7 +13,7 @@
 ------------------------------------------------------------------------- */
 Driver::Driver(int narg, char **arg)
 {
-  int keytype = 0;
+  int flag = 0;
   int zeroflag = 0, pairflag = 0;
   int pbcflag = 0, vflag = 0, sflag = 0;
   double stepsize = 0.;
@@ -24,10 +24,10 @@ Driver::Driver(int narg, char **arg)
 
   while (iarg < narg){
     if (strcmp(arg[iarg],"-w") == 0){ // key is string
-      keytype = 0;
+      flag &= (~FloatKey);
 
     } else if (strcmp(arg[iarg],"-f") == 0){ // key is number
-      keytype = 1;
+      flag |= FloatKey;
 
     } else if (strcmp(arg[iarg],"-s") == 0){ // stepsize if key is number
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
@@ -43,14 +43,14 @@ Driver::Driver(int narg, char **arg)
       ivalue = atoi(arg[iarg]); vflag = 1;
 
     } else if ( strcmp(arg[iarg],"-p")==0 ){ // periodic boundary condition for number and number pairs
-      pbcflag = 1;
+      flag |= PBC4Key;
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       pstr = atof(arg[iarg]);
       if (++iarg >= narg) {DispHelp(arg[0]); return;}
       pend = atof(arg[iarg]);
 
-    } else if ( strcmp(arg[iarg],"-zero")==0 ){ // add empty bins as zero
-      zeroflag = 1;
+    } else if ( strcmp(arg[iarg],"-z")==0 ){ // add empty bins as zero
+      flag |= ZeroPad;
 
     } else if (strcmp(arg[iarg],"-h")==0){
       DispHelp(arg[0]); return;
@@ -67,12 +67,13 @@ Driver::Driver(int narg, char **arg)
   }
 
   if (!vflag) ivalue = ikey;
-  pairflag = abs(ikey-ivalue);
+  if (ikey != ivalue) flag |= PairData;
 
-  if (keytype && (!sflag)){DispHelp(arg[0]); return;}
+  if ((flag & FloatKey) && (!sflag)){DispHelp(arg[0]); return;}
 
   if (iarg >= narg){DispHelp(arg[0]); return;}
-  if (pend < pstr) pbcflag = 0;
+  if (pend < pstr) flag &= (~PBC4Key);
+
   if (fout == NULL){
     fout = new char [9];
     strcpy(fout, "hist.dat");
@@ -83,12 +84,10 @@ Driver::Driver(int narg, char **arg)
   std::string item;
   double key, value;
 
-  int iflag[4];
   double dflag[3];
-  iflag[0] = keytype; iflag[1] = zeroflag; iflag[2] = pbcflag; iflag[3] = pairflag;
-  dflag[0] = stepsize; dflag[1] = pstr;     dflag[2] = pend;
+  dflag[0] = stepsize; dflag[1] = pstr; dflag[2] = pend;
 
-  Histogram *hist = new Histogram(&iflag[0], &dflag[0]);
+  Histogram *hist = new Histogram(flag, &dflag[0]);
 
   // to read all files
   while (iarg < narg){
@@ -117,12 +116,12 @@ Driver::Driver(int narg, char **arg)
         n++;
       } while ((ptr=strtok(NULL," \t\n\r\f")) != NULL && hit != 3);
       if (hit == 3){ 
-        if (keytype == 0){
-          if (pairflag) hist->AddValue(item, value);
-          else hist->AddValue(item);
-        } else {
-          if (pairflag) hist->AddValue(key, value);
+        if (flag & FloatKey){
+          if (flag & PairData) hist->AddValue(key, value);
           else hist->AddValue(value);
+        } else {
+          if (flag & PairData) hist->AddValue(item, value);
+          else hist->AddValue(item);
         }
       }
     }
@@ -155,10 +154,11 @@ void Driver::DispHelp(const char * cmd)
   printf("    -s step       : To define the stepsize if key data are numbers; must be set if `-f` is set.\n");
   printf("    -k key-col    : To specify the column number of the key, by default it is the first column.\n");
   printf("    -v value-col  : To specify the column number of the value, by default: same as key-col.\n");
-  printf("    -zero         : To specify that empty bins should be output as zero; by default unset.\n");
+  printf("    -zero         : To specify that empty bins should be output as zero, works only if `-f` is set;\n");
+  printf("                    default: not set.\n");
   printf("    -p pstr pend  : To specify that the key column has periodic boundary condition, and \n");
-  printf("                    the range of the period is given by the following arguments.\n");
-  printf("    -o outfile    : To define the output filename; by default: hist.dat\n");
+  printf("                    the range of the period is given by the following arguments; works only if `-f` is set.\n");
+  printf("    -o outfile    : To define the output filename; default: hist.dat\n");
   printf("    -h            : To display this help info.\n");
   printf("\n  Command line parameters:\n");
   printf("    file1         : the file which contains the data to be analysed, one and at least one\n");
