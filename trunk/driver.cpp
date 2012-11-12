@@ -154,7 +154,7 @@ void Driver::DispHelp(const char * cmd)
   printf("    -s step       : To define the stepsize if key data are numbers; must be set if `-f` is set.\n");
   printf("    -k key-col    : To specify the column number of the key, by default it is the first column.\n");
   printf("    -v value-col  : To specify the column number of the value, by default: same as key-col.\n");
-  printf("    -zero         : To specify that empty bins should be output as zero, works only if `-f` is set;\n");
+  printf("    -z            : To specify that empty bins should be output as zero, works only if `-f` is set;\n");
   printf("                    default: not set.\n");
   printf("    -p pstr pend  : To specify that the key column has periodic boundary condition, and \n");
   printf("                    the range of the period is given by the following arguments; works only if `-f` is set.\n");
