@@ -95,15 +95,13 @@ Driver::Driver(int narg, char **arg)
     if (fp == NULL){++iarg; continue;}
    
     // to read the current file
-    while (!feof(fp)){
-      fgets(str, MAXLINE, fp);
-      char *ptr;
-      if (ptr = strchr(str,'#')) *ptr = '\0';
-      if ((ptr = strtok(str," \t\n\r\f")) == NULL) continue;
+    fgets(str, MAXLINE, fp);
+    while ( ! feof(fp) ){
+      char *ptr = strchr(str,'#');   if ( ptr ) *ptr = '\0';
+      ptr = strtok(str," \t\n\r\f"); if ( ptr == NULL) continue;
 
-      int hit = 0;
-      int n = 1;
-      do {
+      int hit = 0, n = 1;
+      while ( (ptr != NULL) && (hit != 3)){
         if (n == ikey){
           item.assign(ptr);
           key = atof(ptr);
@@ -114,7 +112,10 @@ Driver::Driver(int narg, char **arg)
           hit |= 2;
         }
         n++;
-      } while ((ptr=strtok(NULL," \t\n\r\f")) != NULL && hit != 3);
+
+        ptr = strtok(NULL," \t\n\r\f");
+      }
+
       if (hit == 3){ 
         if (flag & FloatKey){
           if (flag & PairData) hist->AddValue(key, value);
@@ -124,6 +125,8 @@ Driver::Driver(int narg, char **arg)
           else hist->AddValue(item);
         }
       }
+
+      fgets(str, MAXLINE, fp);
     }
     fclose(fp);
     ++iarg;
@@ -139,10 +142,10 @@ return;
 Driver::~Driver()
 {
 }
+
 /* ----------------------------------------------------------------------
    To display the help info
 ------------------------------------------------------------------------- */
-
 void Driver::DispHelp(const char * cmd)
 {
   printf("\n%s: Program to calculate the histogram of one column of data in one or many files.\n", cmd);
