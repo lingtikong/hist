@@ -37,7 +37,7 @@ clean:
 	rm -f *.o *~ *.mod ${EXE}
 
 tar:
-	rm -f ${ROOT}.tar; tar -czvf ${ROOT}.tar.gz *.cpp  *.h *.f *.f90 Makefile README
+	rm -f ${ROOT}.tar; tar -czvf ${ROOT}.tar.gz *.cpp  *.h Makefile README
 
 .f.o:
 	$(FC) $(FFLAGS) $(FREE) $(MPI) ${INC} -c $<
