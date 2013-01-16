@@ -95,13 +95,16 @@ Driver::Driver(int narg, char **arg)
     if (fp == NULL){++iarg; continue;}
    
     // to read the current file
-    fgets(str, MAXLINE, fp);
-    while ( ! feof(fp) ){
-      char *ptr = strchr(str,'#');   if ( ptr ) *ptr = '\0';
-      ptr = strtok(str," \t\n\r\f"); if ( ptr == NULL) continue;
+    while ( 1 ){
+      fgets(str, MAXLINE, fp);
+      if ( feof(fp) ) break;
+
+      char *ptr = strchr(str,'#');  if ( ptr ) *ptr = '\0';
+      ptr = strtok(str," \t\n\r\f");
+      if ( ptr == NULL) continue;
 
       int hit = 0, n = 1;
-      while ( (ptr != NULL) && (hit != 3)){
+      while ( ptr && (hit != 3)){
         if (n == ikey){
           item.assign(ptr);
           key = atof(ptr);
@@ -125,8 +128,6 @@ Driver::Driver(int narg, char **arg)
           else hist->AddValue(item);
         }
       }
-
-      fgets(str, MAXLINE, fp);
     }
     fclose(fp);
     ++iarg;
