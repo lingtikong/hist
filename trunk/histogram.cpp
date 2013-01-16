@@ -167,6 +167,7 @@ void Histogram::Output(char *fname)
 
     } else { // float key only
 
+      fprintf(fp,"#index position Counts weight\n");
       int ic = 0;
       int inext = ItemCount.begin()->first;
 
@@ -185,7 +186,6 @@ void Histogram::Output(char *fname)
 
     Sort();
 
-    printf("nitem = %d\n", nitem);
     if (flag & PairData){ // string key and float value pair
 
       fprintf(fp,"#index Item AveValue StdEr Counts weight\n");
