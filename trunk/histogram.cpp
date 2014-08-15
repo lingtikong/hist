@@ -15,7 +15,7 @@ Histogram::Histogram(const int iflag, double *dflag)
   HitSum.clear();
   HitSum2.clear();
   
-  nitem = nuniq = 0;
+  nitem = nuniq = idmax = 0;
   flag = iflag;
 
   stepsize = dflag[0];
@@ -28,6 +28,8 @@ Histogram::Histogram(const int iflag, double *dflag)
   if (flag & FloatKey){
     halfstep = 0.5*stepsize;
     inv_step = 1./stepsize;
+
+    if (flag & PBC4Key) idmax = int(prd*inv_step);
   }
 
 return;
@@ -150,7 +152,7 @@ void Histogram::Output(char *fname)
       fprintf(fp,"#index position AveValue StdEr Counts weight\n");
       int ic = 0;
       double ave, stdv;
-      int inext = ItemCount.begin()->first;
+      int inext = 0;
 
       for (it = ItemCount.begin(); it != ItemCount.end(); it++){
         int id = it->first, num = it->second;
@@ -164,12 +166,15 @@ void Histogram::Output(char *fname)
 
         fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, ave, stdv, num, double(num)*fac);
       }
+      if (flag & ZeroPad){
+        for (int ik = inext; ik < idmax; ++ik) fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
+      }
 
     } else { // float key only
 
       fprintf(fp,"#index position Counts weight\n");
       int ic = 0;
-      int inext = ItemCount.begin()->first;
+      int inext = 0; //ItemCount.begin()->first;
 
       for (it = ItemCount.begin(); it != ItemCount.end(); it++){
         int id = it->first, num = it->second;
@@ -179,6 +184,9 @@ void Histogram::Output(char *fname)
         }
 
         fprintf(fp,"%d %lg %d %lg\n", ++ic, double(id)*stepsize+pstr, num, double(num)*fac);
+      }
+      if (flag & ZeroPad){
+        for (int ik = inext; ik < idmax; ++ik) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
       }
     }
 
@@ -191,7 +199,6 @@ void Histogram::Output(char *fname)
       fprintf(fp,"#index Item AveValue StdEr Counts weight\n");
       int ic = 0;
       double ave, stdv;
-      int inext = ItemCount.begin()->first;
 
       for (it = ItemCount.begin(); it != ItemCount.end(); it++){
         int id = it->first, num = it->second;

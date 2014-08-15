@@ -31,6 +31,7 @@ private:
   double stepsize;                   // step size for numbers
   double halfstep, inv_step;
   double pstr, pend, prd;
+  int idmax;
 
   std::map<string, int> Item2Index;  // where an item has been observed before, the index of certain item
   std::map<int, string> Index2Item;  // the item type of certain index
