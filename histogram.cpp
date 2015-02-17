@@ -97,9 +97,9 @@ void Histogram::AddValue(const double value)
     double dr = value + halfstep - pstr;
     while (dr > prd) dr -= prd;
     while (dr < 0.)  dr += prd;
-    id = dr * inv_step;
+    id = int(floor(dr * inv_step));
 
-  } else id = (value + halfstep) * inv_step;
+  } else id = int(floor((value + halfstep) * inv_step));
 
   if (ItemCount.count(id) == 0) ItemCount[id] = 0;
 
@@ -117,9 +117,9 @@ void Histogram::AddValue(const double pos, const double value)
     double dr = pos + halfstep - pstr;
     while (dr > prd) dr -= prd;
     while (dr < 0.)  dr += prd;
-    id = dr * inv_step;
+    id = int(floor(dr * inv_step));
 
-  } else id = (pos + halfstep) * inv_step;
+  } else id = int(floor((pos + halfstep) * inv_step));
 
   if (ItemCount.count(id) == 0){
     ItemCount[id] = 0;
@@ -157,7 +157,7 @@ void Histogram::Output(char *fname)
       for (it = ItemCount.begin(); it != ItemCount.end(); it++){
         int id = it->first, num = it->second;
         if (flag & ZeroPad){ // insert empty bins
-          for (int ik = inext; ik<id; ik++) fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
+          for (int ik = inext; ik<id; ++ik) fprintf(fp,"%d %lg %lg %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0., 0., 0, 0.);
           inext = id+1;
         }
         ave = HitSum[id]/double(num);
@@ -179,7 +179,7 @@ void Histogram::Output(char *fname)
       for (it = ItemCount.begin(); it != ItemCount.end(); it++){
         int id = it->first, num = it->second;
         if (flag & ZeroPad){ // insert empty bins
-          for (int ik=inext; ik<id; ik++) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
+          for (int ik = inext; ik<id; ++ik) fprintf(fp,"%d %lg %d %lg\n", ++ic, double(ik)*stepsize+pstr, 0, 0.);
           inext = id+1;
         }
 
